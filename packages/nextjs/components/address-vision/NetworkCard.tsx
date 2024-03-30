@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { NftsCarousel } from "./NftsCarousel";
@@ -6,6 +7,7 @@ import { TokensTable } from "./TokensTable";
 import { CovalentClient } from "@covalenthq/client-sdk";
 import { Address, isAddress } from "viem";
 import { Chain } from "wagmi";
+import * as chains from "wagmi/chains";
 import { useNetworkBalancesStore } from "~~/services/store/store";
 import {
   NETWORKS_EXTRA_DATA,
@@ -20,9 +22,15 @@ const client = new CovalentClient(process.env.NEXT_PUBLIC_COVALENT_API_KEY as st
 export const NetworkCard = ({ address, chain }: { address: Address; chain: Chain }) => {
   const [nfts, setNfts] = useState<any[]>([]);
   const [tokenBalances, setTokenBalances] = useState<any[]>([]);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [historicalTokenBalances, setHistoricalTokenBalances] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { setBalance, resetBalances } = useNetworkBalancesStore();
   const currentNetworkData = NETWORKS_EXTRA_DATA[chain.id];
+
+  const isMainnet = chain == chains.mainnet;
+
+  const shouldFetchHistoricalData = useRef(false); // Ref to control fetch operation
 
   const getNfts = async () => {
     const options = {
@@ -78,11 +86,45 @@ export const NetworkCard = ({ address, chain }: { address: Address; chain: Chain
     }
   };
 
+  const getHistoricalTokens = async (date: string) => {
+    if (!isMainnet || !date) return;
+
+    try {
+      const res = await client.BalanceService.getHistoricalTokenBalancesForWalletAddress("eth-mainnet", address, {
+        date: date as any,
+        nft: false,
+        noSpam: true,
+      });
+      if (res.data && res.data.items) {
+        const filteredTokens = res.data.items.slice(0, 10).filter(t => t.quote != null && t.quote.toFixed(0) !== "0");
+        setHistoricalTokenBalances(filteredTokens);
+      }
+    } catch (error) {
+      console.error(`Failed to fetch historical token balances for ${chain.name}:`, error);
+    } finally {
+      setLoading(false);
+      shouldFetchHistoricalData.current = false;
+    }
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedDate(e.target.value);
+  };
+
+  const fetchHistoricalData = () => {
+    if (selectedDate && isMainnet) {
+      shouldFetchHistoricalData.current = true;
+      getHistoricalTokens(selectedDate);
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
     setNfts([]);
     setTokenBalances([]);
+    setHistoricalTokenBalances([]);
     if (address && isAddress(address)) {
+      getNfts();
       resetBalances();
       getNfts();
       getTokens();
@@ -143,7 +185,6 @@ export const NetworkCard = ({ address, chain }: { address: Address; chain: Chain
   }
 
   const filteredTokens = tokenBalances.slice(0, 10).filter(t => t.quote != null && t.quote.toFixed(0) !== "0");
-
   if (nfts.length === 0 && filteredTokens.length === 0) return null;
 
   if (address && isValidEnsOrAddress(address)) {
@@ -164,11 +205,29 @@ export const NetworkCard = ({ address, chain }: { address: Address; chain: Chain
               )}
               <span className="text-sm md:text-base">{chain.name}</span>
             </Link>
+            {isMainnet && (
+              <div className="mb-4 absolute right-4 top-4">
+                <>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={handleDateChange}
+                    className="input input-sm input-bordered"
+                  />
+                  <button onClick={fetchHistoricalData} className="btn btn-xs btn-primary ml-2">
+                    Fetch Data
+                  </button>
+                </>
+              </div>
+            )}
           </h2>
           <h3 className="font-bold">NFTs</h3>
           <NftsCarousel nfts={nfts} chain={chain} address={address} />
           <h3 className="mt-4 font-bold">Tokens</h3>
-          <TokensTable tokens={filteredTokens} />
+          <TokensTable
+            key={selectedDate}
+            tokens={historicalTokenBalances.length > 0 ? historicalTokenBalances : filteredTokens}
+          />
         </div>
       </div>
     );
