@@ -7,7 +7,14 @@ import { mainnet } from "viem/chains";
 import { normalize } from "viem/ens";
 import * as chains from "wagmi/chains";
 import { MetaHeader } from "~~/components/MetaHeader";
-import { AddressCard, ButtonsCard, Navbar, NetworkCard, QRCodeCard } from "~~/components/address-vision/";
+import {
+  AddressCard,
+  BalanceHistoryGraph,
+  ButtonsCard,
+  Navbar,
+  NetworkCard,
+  QRCodeCard,
+} from "~~/components/address-vision/";
 import { TotalBalanceCard } from "~~/components/address-vision/TotalBalanceCard";
 import { useAccountBalance } from "~~/hooks/scaffold-eth";
 import { notification } from "~~/utils/scaffold-eth";
@@ -153,6 +160,16 @@ const Home: NextPage = () => {
               <NetworkCard address={searchedAddress} chain={chains.polygon} />
             </div>
           </div>
+          <dialog id="my_modal_1" className="modal">
+            <div className="modal-box max-w-5xl">
+              <div className="modal-action">
+                <form method="dialog">
+                  <button className="btn">Close</button>
+                </form>
+              </div>
+              <BalanceHistoryGraph address={searchedAddress} />
+            </div>
+          </dialog>
         </div>
       ) : (
         <div

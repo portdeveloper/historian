@@ -215,7 +215,14 @@ export const NetworkCard = ({ address, chain }: { address: Address; chain: Chain
                     className="input input-sm input-bordered"
                   />
                   <button onClick={fetchHistoricalData} className="btn btn-xs btn-primary ml-2">
-                    Fetch Data
+                    Fetch
+                  </button>
+                  {/* Open the modal using document.getElementById('ID').showModal() method */}
+                  <button
+                    className="btn btn-xs btn-primary ml-2"
+                    onClick={() => document.getElementById("my_modal_1").showModal()}
+                  >
+                    graph
                   </button>
                 </>
               </div>
